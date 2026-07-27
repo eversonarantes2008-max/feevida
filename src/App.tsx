@@ -5,12 +5,15 @@ import { BottomNav, ActiveTab } from './components/BottomNav';
 import { LandingCheckoutModal } from './components/LandingCheckoutModal';
 import { MasterDashboard } from './components/MasterDashboard';
 import { AuthModal } from './components/AuthModal';
+import { FirstAccessTutorialModal } from './components/FirstAccessTutorialModal';
 import { HomeView } from './views/HomeView';
 import { LiturgyView } from './views/LiturgyView';
 import { BibleView } from './views/BibleView';
 import { PrayersView } from './views/PrayersView';
 import { KidsView } from './views/KidsView';
 import { RemindersView } from './views/RemindersView';
+import { LoginPage } from './views/LoginPage';
+import { RegisterPage } from './views/RegisterPage';
 import { UserAccount } from './types';
 import { Lock, Sparkles, ShieldCheck } from 'lucide-react';
 
@@ -28,6 +31,18 @@ export function App() {
   const [isMasterDashOpen, setIsMasterDashOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+
+  // Auto-trigger tutorial on first visit
+  useEffect(() => {
+    const isDismissed = localStorage.getItem('fe_vida_tutorial_dismissed');
+    if (!isDismissed) {
+      const timer = setTimeout(() => {
+        setIsTutorialOpen(true);
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   // PWA Prompt event handler
   const [pwaDeferredPrompt, setPwaDeferredPrompt] = useState<any>(null);
@@ -69,8 +84,8 @@ export function App() {
   const isUnlocked = currentUser?.role === 'admin' || currentUser?.paymentStatus === 'approved';
 
   const handleOpenAuth = (tab: 'login' | 'register' = 'login') => {
-    setAuthTab(tab);
-    setIsAuthOpen(true);
+    setActiveTab(tab);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -86,6 +101,7 @@ export function App() {
         onLogout={handleLogout}
         isPwaInstallable={!!pwaDeferredPrompt}
         onInstallPwa={handleInstallPwa}
+        onOpenTutorial={() => setIsTutorialOpen(true)}
       />
 
       {/* Main Container */}
@@ -146,6 +162,24 @@ export function App() {
             {activeTab === 'kids' && <KidsView />}
 
             {activeTab === 'lembretes' && <RemindersView />}
+
+            {activeTab === 'login' && (
+              <LoginPage
+                onLoginSuccess={handleLoginSuccess}
+                onNavigateToRegister={() => setActiveTab('register')}
+                onOpenCheckout={() => setIsCheckoutOpen(true)}
+                user={currentUser}
+                onLogout={handleLogout}
+              />
+            )}
+
+            {activeTab === 'register' && (
+              <RegisterPage
+                onLoginSuccess={handleLoginSuccess}
+                onNavigateToLogin={() => setActiveTab('login')}
+                onOpenCheckout={() => setIsCheckoutOpen(true)}
+              />
+            )}
           </motion.div>
         </AnimatePresence>
 
@@ -177,6 +211,13 @@ export function App() {
         onOpenCheckout={() => setIsCheckoutOpen(true)}
         user={currentUser}
         onLogout={handleLogout}
+      />
+
+      <FirstAccessTutorialModal
+        isOpen={isTutorialOpen}
+        onClose={() => setIsTutorialOpen(false)}
+        onOpenAuth={() => handleOpenAuth('register')}
+        onInstallPwa={handleInstallPwa}
       />
 
     </div>

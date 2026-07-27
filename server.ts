@@ -38,6 +38,8 @@ interface UserRecord {
   paymentDate?: string;
   planType: 'single' | 'annual';
   createdAt: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
 }
 
 const MASTER_EMAIL = 'everson.arantes.2008@gmail.com';
@@ -77,6 +79,60 @@ let usersDatabase: UserRecord[] = [
     paymentDate: new Date().toISOString(),
     planType: 'single',
     createdAt: new Date().toISOString()
+  }
+];
+
+export interface PaymentTransactionRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  amount: number;
+  paymentMethod: 'pix' | 'card' | 'boleto';
+  status: 'pending' | 'approved' | 'rejected';
+  description: string;
+  pixCode?: string;
+  transactionId: string;
+  date: string;
+}
+
+let paymentsDatabase: PaymentTransactionRecord[] = [
+  {
+    id: 'pay_master_001',
+    userId: 'usr_master_001',
+    userName: 'Everson Arantes (Administrador Master)',
+    userEmail: MASTER_EMAIL,
+    amount: 19.00,
+    paymentMethod: 'pix',
+    status: 'approved',
+    description: 'Acesso Master Administrador (Vitalício)',
+    transactionId: 'TX-PIX-MASTER-001',
+    date: new Date().toISOString()
+  },
+  {
+    id: 'pay_demo_002',
+    userId: 'usr_demo_002',
+    userName: 'Maria Das Graças',
+    userEmail: 'fiel.catolico@gmail.com',
+    amount: 19.00,
+    paymentMethod: 'pix',
+    status: 'approved',
+    description: 'Acesso Único Premium - Fé e Vida Católica',
+    transactionId: 'TX-PIX-891234',
+    date: new Date(Date.now() - 86400000 * 2).toISOString()
+  },
+  {
+    id: 'pay_demo_003',
+    userId: 'usr_demo_003',
+    userName: 'João Pedro Silva',
+    userEmail: 'joao.silva@hotmail.com',
+    amount: 19.00,
+    paymentMethod: 'pix',
+    status: 'pending',
+    description: 'Acesso Único Premium - Fé e Vida Católica',
+    pixCode: '00020126580014br.gov.bcb.pix0136123e4567-e89b-12d3-a456-426614174000520400005303986540519.005802BR5925Fe e Vida Catolica Premium6009SAO PAULO62070503***6304E2CA',
+    transactionId: 'TX-PIX-742918',
+    date: new Date(Date.now() - 3600000 * 3).toISOString()
   }
 ];
 
@@ -122,6 +178,22 @@ app.post('/api/auth/register', (req: Request, res: Response) => {
   };
 
   usersDatabase.push(newUser);
+
+  // Record initial transaction
+  const newTransaction: PaymentTransactionRecord = {
+    id: `pay_${Date.now()}`,
+    userId: newUser.id,
+    userName: newUser.name,
+    userEmail: newUser.email,
+    amount: 19.00,
+    paymentMethod: 'pix',
+    status: newUser.paymentStatus,
+    description: 'Acesso Único Premium - Fé e Vida Católica',
+    pixCode: '00020126580014br.gov.bcb.pix0136123e4567-e89b-12d3-a456-426614174000520400005303986540519.005802BR5925Fe e Vida Catolica Premium6009SAO PAULO62070503***6304E2CA',
+    transactionId: `TX-PIX-${Math.floor(100000 + Math.random() * 900000)}`,
+    date: new Date().toISOString()
+  };
+  paymentsDatabase.push(newTransaction);
 
   return res.json({
     success: true,
@@ -171,6 +243,12 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
   if (!existing) {
     return res.status(404).json({
       error: 'E-mail não encontrado em nossa base de fiéis. Clique em "Criar Nova Conta" para se cadastrar.'
+    });
+  }
+
+  if (existing.isDeleted) {
+    return res.status(403).json({
+      error: 'Sua conta foi desativada pelo Administrador Master. Entre em contato com o suporte para reativação.'
     });
   }
 
@@ -227,6 +305,27 @@ app.post('/api/admin/approve', (req: Request, res: Response) => {
 
   user.paymentStatus = 'approved';
   user.paymentDate = new Date().toISOString();
+
+  // Sync payments database
+  let payRecord = paymentsDatabase.find(p => p.userId === user.id || p.userEmail.toLowerCase() === user.email.toLowerCase());
+  if (payRecord) {
+    payRecord.status = 'approved';
+    payRecord.date = user.paymentDate;
+  } else {
+    paymentsDatabase.push({
+      id: `pay_${Date.now()}`,
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      amount: 19.00,
+      paymentMethod: user.paymentMethod || 'pix',
+      status: 'approved',
+      description: 'Acesso Único Premium - Fé e Vida Católica',
+      transactionId: `TX-PIX-${Math.floor(100000 + Math.random() * 900000)}`,
+      date: user.paymentDate
+    });
+  }
+
   return res.json({ success: true, message: `Acesso do fiel ${user.name} (${user.email}) foi APROVADO!`, user });
 });
 
@@ -238,6 +337,11 @@ app.post('/api/admin/reject', (req: Request, res: Response) => {
   }
 
   user.paymentStatus = 'rejected';
+  let payRecord = paymentsDatabase.find(p => p.userId === user.id || p.userEmail.toLowerCase() === user.email.toLowerCase());
+  if (payRecord) {
+    payRecord.status = 'rejected';
+  }
+
   return res.json({ success: true, message: `Acesso do fiel ${user.name} foi rejeitado/suspenso.`, user });
 });
 
@@ -260,7 +364,105 @@ app.post('/api/admin/add-user', (req: Request, res: Response) => {
   };
 
   usersDatabase.push(newRecord);
+
+  paymentsDatabase.push({
+    id: `pay_${Date.now()}`,
+    userId: newRecord.id,
+    userName: newRecord.name,
+    userEmail: newRecord.email,
+    amount: 19.00,
+    paymentMethod: (paymentMethod as any) || 'pix',
+    status: 'approved',
+    description: 'Manual Addition - Fé e Vida Católica',
+    transactionId: `TX-MANUAL-${Math.floor(100000 + Math.random() * 900000)}`,
+    date: newRecord.paymentDate!
+  });
+
   return res.json({ success: true, user: newRecord });
+});
+
+app.post('/api/admin/delete', (req: Request, res: Response) => {
+  const { userId } = req.body;
+  const user = usersDatabase.find(u => u.id === userId || u.email.toLowerCase() === userId?.toLowerCase());
+  if (!user) {
+    return res.status(404).json({ error: 'Usuário não encontrado.' });
+  }
+
+  if (user.email.toLowerCase() === MASTER_EMAIL.toLowerCase()) {
+    return res.status(400).json({ error: 'O Administrador Master não pode ser excluído.' });
+  }
+
+  user.isDeleted = true;
+  user.deletedAt = new Date().toISOString();
+  return res.json({
+    success: true,
+    message: `Cadastro de ${user.name} foi movido para a lista de Excluídos com sucesso.`,
+    user
+  });
+});
+
+app.post('/api/admin/restore', (req: Request, res: Response) => {
+  const { userId } = req.body;
+  const user = usersDatabase.find(u => u.id === userId || u.email.toLowerCase() === userId?.toLowerCase());
+  if (!user) {
+    return res.status(404).json({ error: 'Usuário não encontrado.' });
+  }
+
+  user.isDeleted = false;
+  user.deletedAt = undefined;
+  // Restore user with approved access
+  user.paymentStatus = 'approved';
+  user.paymentDate = new Date().toISOString();
+
+  let payRecord = paymentsDatabase.find(p => p.userId === user.id || p.userEmail.toLowerCase() === user.email.toLowerCase());
+  if (payRecord) {
+    payRecord.status = 'approved';
+    payRecord.date = user.paymentDate;
+  }
+
+  return res.json({
+    success: true,
+    message: `Cadastro de ${user.name} foi restaurado e seu acesso foi liberado com sucesso!`,
+    user
+  });
+});
+
+// Payments API
+app.get('/api/user/payments', (req: Request, res: Response) => {
+  const email = req.query.email as string;
+  if (!email) {
+    return res.status(400).json({ error: 'E-mail do usuário é obrigatório.' });
+  }
+  const cleanEmail = email.toLowerCase().trim();
+  let userPayments = paymentsDatabase.filter(p => p.userEmail.toLowerCase() === cleanEmail);
+
+  const userObj = usersDatabase.find(u => u.email.toLowerCase() === cleanEmail);
+  if (userPayments.length === 0 && userObj) {
+    const defaultPay: PaymentTransactionRecord = {
+      id: `pay_${userObj.id}`,
+      userId: userObj.id,
+      userName: userObj.name,
+      userEmail: userObj.email,
+      amount: 19.00,
+      paymentMethod: userObj.paymentMethod || 'pix',
+      status: userObj.paymentStatus || 'pending',
+      description: 'Assinatura Fé e Vida Católica Premium - Acesso Único',
+      transactionId: `TX-PIX-${Math.floor(100000 + Math.random() * 900000)}`,
+      date: userObj.paymentDate || userObj.createdAt
+    };
+    paymentsDatabase.push(defaultPay);
+    userPayments = [defaultPay];
+  }
+
+  return res.json({ payments: userPayments });
+});
+
+app.get('/api/admin/payments', (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.includes('master_auth_token')) {
+    return res.status(403).json({ error: 'Acesso negado. Requer autorização Master.' });
+  }
+  return res.json({ payments: paymentsDatabase });
 });
 
 // Gemini AI Catholic Services (Reflection, Kids Story, Catechism Q&A)

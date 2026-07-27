@@ -1,7 +1,7 @@
 import React from 'react';
 import { BookOpen, Calendar, Cross, Heart, Bell, Baby } from 'lucide-react';
 
-export type ActiveTab = 'hoje' | 'liturgia' | 'biblia' | 'oracoes' | 'kids' | 'lembretes';
+export type ActiveTab = 'hoje' | 'liturgia' | 'biblia' | 'oracoes' | 'kids' | 'lembretes' | 'login' | 'register';
 
 interface BottomNavProps {
   activeTab: ActiveTab;

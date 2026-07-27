@@ -1,5 +1,5 @@
 import React from 'react';
-import { Cross, ShieldCheck, Download, UserCheck, Key, Lock, Sparkles } from 'lucide-react';
+import { Cross, ShieldCheck, Download, UserCheck, Key, Lock, Sparkles, HelpCircle, LogOut } from 'lucide-react';
 import { UserAccount } from '../types';
 
 interface NavbarProps {
@@ -10,6 +10,7 @@ interface NavbarProps {
   onLogout: () => void;
   isPwaInstallable: boolean;
   onInstallPwa: () => void;
+  onOpenTutorial: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -19,7 +20,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenMasterDashboard,
   onLogout,
   isPwaInstallable,
-  onInstallPwa
+  onInstallPwa,
+  onOpenTutorial
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-[#002147] text-[#FDFCF0] border-b border-[#C5A059]/40 shadow-xl">
@@ -48,6 +50,16 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Right Action Controls */}
         <div className="flex items-center space-x-2 sm:space-x-3">
           
+          {/* Tutorial / Guia Button */}
+          <button
+            onClick={onOpenTutorial}
+            className="flex items-center space-x-1 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-white/10 text-[#F1D592] hover:bg-white/20 transition border border-[#C5A059]/40"
+            title="Guia de Primeiro Acesso e Tutorial"
+          >
+            <HelpCircle className="w-3.5 h-3.5 text-[#C5A059]" />
+            <span className="hidden md:inline">Tutorial</span>
+          </button>
+
           {/* PWA Install Button */}
           {isPwaInstallable && (
             <button
@@ -70,7 +82,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   title="Painel Master Administrador"
                 >
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  <span className="font-bold">Painel Master</span>
+                  <span className="font-bold hidden sm:inline">Painel Master</span>
                 </button>
               ) : (
                 <button
@@ -83,20 +95,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               )}
 
-              <button
-                onClick={onOpenCheckout}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold gold-gradient text-[#002147] hover:opacity-95 transition shadow-md uppercase tracking-wider"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Assinar (R$ 19)</span>
-              </button>
+              {user.paymentStatus !== 'approved' && user.role !== 'admin' && (
+                <button
+                  onClick={onOpenCheckout}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold gold-gradient text-[#002147] hover:opacity-95 transition shadow-md uppercase tracking-wider"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Assinar (R$ 19)</span>
+                </button>
+              )}
 
+              {/* Botão Sair do Aplicativo */}
               <button
                 onClick={onLogout}
-                className="p-1.5 text-gray-300 hover:text-white hover:bg-white/10 rounded-full transition"
-                title="Sair da conta"
+                className="flex items-center space-x-1 px-3 py-1.5 rounded-full text-xs font-bold bg-red-600/90 hover:bg-red-700 text-white border border-red-400/60 transition shadow-md"
+                title="Sair do Aplicativo"
               >
-                <Lock className="w-4 h-4" />
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Sair</span>
               </button>
             </div>
           ) : (
@@ -134,3 +150,4 @@ export const Navbar: React.FC<NavbarProps> = ({
     </header>
   );
 };
+

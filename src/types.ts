@@ -15,6 +15,22 @@ export interface UserAccount {
   paymentDate?: string;
   planType: 'single' | 'annual';
   createdAt: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
+}
+
+export interface PaymentTransaction {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  amount: number;
+  paymentMethod: 'pix' | 'card' | 'boleto';
+  status: PaymentStatus;
+  description: string;
+  pixCode?: string;
+  transactionId: string;
+  date: string;
 }
 
 export interface LiturgicalDay {

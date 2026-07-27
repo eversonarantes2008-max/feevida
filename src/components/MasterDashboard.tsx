@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck, UserCheck, UserX, UserPlus, Lock, Key, RefreshCw, CheckCircle2,
-  DollarSign, Users, X, Sparkles, BookOpen, Settings, BarChart2, Check, QrCode, Shield
+  DollarSign, Users, X, Sparkles, BookOpen, Settings, BarChart2, Check, QrCode, Shield,
+  Trash2, RotateCcw, Archive, AlertCircle, Receipt, FileText
 } from 'lucide-react';
-import { UserAccount } from '../types';
+import { UserAccount, PaymentTransaction } from '../types';
 
 interface MasterDashboardProps {
   isOpen: boolean;
@@ -18,7 +19,7 @@ export const MasterDashboard: React.FC<MasterDashboardProps> = ({
   currentUser,
   onMasterLoginSuccess
 }) => {
-  const [adminTab, setAdminTab] = useState<'users' | 'financial' | 'kids' | 'settings'>('users');
+  const [adminTab, setAdminTab] = useState<'users' | 'deleted' | 'financial' | 'kids' | 'settings'>('users');
   const [masterEmailInput, setMasterEmailInput] = useState('');
   const [masterPassInput, setMasterPassInput] = useState('');
   const [isAuthenticatedMaster, setIsAuthenticatedMaster] = useState(false);
@@ -27,6 +28,10 @@ export const MasterDashboard: React.FC<MasterDashboardProps> = ({
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
+
+  // Custom Delete Modal & Action Feedback state
+  const [userToDelete, setUserToDelete] = useState<{ id: string; name: string; email: string } | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Manual User Creation State
   const [manualName, setManualName] = useState('');
@@ -43,18 +48,30 @@ export const MasterDashboard: React.FC<MasterDashboardProps> = ({
   const MASTER_EMAIL = 'everson.arantes.2008@gmail.com';
   const PIX_KEY = '27095675805';
 
+  // Payments History State
+  const [allPayments, setAllPayments] = useState<PaymentTransaction[]>([]);
+
   const fetchUsersList = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/admin/users', {
-        headers: {
-          'Authorization': 'Bearer master_auth_token_987213'
-        }
-      });
-      const data = await res.json();
+      const [resUsers, resPayments] = await Promise.all([
+        fetch('/api/admin/users', {
+          headers: { 'Authorization': 'Bearer master_auth_token_987213' }
+        }),
+        fetch('/api/admin/payments', {
+          headers: { 'Authorization': 'Bearer master_auth_token_987213' }
+        })
+      ]);
+
+      const dataUsers = await resUsers.json();
+      const dataPayments = await resPayments.json();
+
       setIsLoading(false);
-      if (data.users) {
-        setUsersList(data.users);
+      if (dataUsers.users) {
+        setUsersList(dataUsers.users);
+      }
+      if (dataPayments.payments) {
+        setAllPayments(dataPayments.payments);
       }
     } catch (err) {
       setIsLoading(false);
@@ -114,15 +131,21 @@ export const MasterDashboard: React.FC<MasterDashboardProps> = ({
     try {
       const res = await fetch('/api/admin/approve', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer master_auth_token_987213'
+        },
         body: JSON.stringify({ userId })
       });
       const data = await res.json();
       if (data.success) {
+        setActionFeedback({ type: 'success', message: data.message || 'Acesso do fiel aprovado com sucesso!' });
         fetchUsersList();
+      } else {
+        setActionFeedback({ type: 'error', message: data.error || 'Erro ao autorizar usuário.' });
       }
     } catch (err) {
-      alert('Erro ao autorizar usuário.');
+      setActionFeedback({ type: 'error', message: 'Erro ao autorizar usuário.' });
     }
   };
 
@@ -130,15 +153,78 @@ export const MasterDashboard: React.FC<MasterDashboardProps> = ({
     try {
       const res = await fetch('/api/admin/reject', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer master_auth_token_987213'
+        },
         body: JSON.stringify({ userId })
       });
       const data = await res.json();
       if (data.success) {
+        setActionFeedback({ type: 'success', message: data.message || 'Acesso do fiel revogado com sucesso.' });
         fetchUsersList();
+      } else {
+        setActionFeedback({ type: 'error', message: data.error || 'Erro ao revogar usuário.' });
       }
     } catch (err) {
-      alert('Erro ao revogar usuário.');
+      setActionFeedback({ type: 'error', message: 'Erro ao revogar usuário.' });
+    }
+  };
+
+  const openDeleteModal = (id: string, name: string, email: string) => {
+    setUserToDelete({ id, name, email });
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    try {
+      const res = await fetch('/api/admin/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer master_auth_token_987213'
+        },
+        body: JSON.stringify({ userId: userToDelete.id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionFeedback({
+          type: 'success',
+          message: data.message || `Cadastro de ${userToDelete.name} movido para a lista de Excluídos com sucesso.`
+        });
+        fetchUsersList();
+      } else {
+        setActionFeedback({ type: 'error', message: data.error || 'Erro ao excluir cadastro.' });
+      }
+    } catch (err) {
+      setActionFeedback({ type: 'error', message: 'Erro ao comunicar com o servidor para excluir.' });
+    } finally {
+      setUserToDelete(null);
+    }
+  };
+
+  const handleRestoreUser = async (userId: string, userName?: string) => {
+    try {
+      const res = await fetch('/api/admin/restore', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer master_auth_token_987213'
+        },
+        body: JSON.stringify({ userId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionFeedback({
+          type: 'success',
+          message: data.message || `Cadastro de ${userName || 'fiel'} restaurado e liberado com sucesso!`
+        });
+        fetchUsersList();
+      } else {
+        setActionFeedback({ type: 'error', message: data.error || 'Erro ao restaurar cadastro.' });
+      }
+    } catch (err) {
+      setActionFeedback({ type: 'error', message: 'Erro ao restaurar usuário.' });
     }
   };
 
@@ -169,7 +255,10 @@ export const MasterDashboard: React.FC<MasterDashboardProps> = ({
     }
   };
 
-  const filteredUsers = usersList.filter(u => {
+  const activeUsers = usersList.filter(u => !u.isDeleted);
+  const deletedUsers = usersList.filter(u => u.isDeleted === true);
+
+  const filteredUsers = activeUsers.filter(u => {
     const matchesSearch = u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           u.email?.toLowerCase().includes(searchQuery.toLowerCase());
     
@@ -179,9 +268,14 @@ export const MasterDashboard: React.FC<MasterDashboardProps> = ({
     return matchesSearch;
   });
 
-  const approvedCount = usersList.filter(u => u.paymentStatus === 'approved').length;
-  const pendingCount = usersList.filter(u => u.paymentStatus === 'pending').length;
-  const rejectedCount = usersList.filter(u => u.paymentStatus === 'rejected').length;
+  const filteredDeletedUsers = deletedUsers.filter(u =>
+    u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    u.email?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const approvedCount = activeUsers.filter(u => u.paymentStatus === 'approved').length;
+  const pendingCount = activeUsers.filter(u => u.paymentStatus === 'pending').length;
+  const rejectedCount = activeUsers.filter(u => u.paymentStatus === 'rejected').length;
   const totalRevenue = approvedCount * 19;
   const pendingRevenue = pendingCount * 19;
 
@@ -241,7 +335,19 @@ export const MasterDashboard: React.FC<MasterDashboardProps> = ({
                 }`}
               >
                 <Users className="w-4 h-4" />
-                <span>Aprovações de Fiéis ({usersList.length})</span>
+                <span>Aprovações de Fiéis ({activeUsers.length})</span>
+              </button>
+
+              <button
+                onClick={() => setAdminTab('deleted')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 ${
+                  adminTab === 'deleted'
+                    ? 'bg-[#C5A059] text-[#002147] shadow-md'
+                    : 'bg-white/10 text-gray-200 hover:bg-white/20'
+                }`}
+              >
+                <Trash2 className="w-4 h-4 text-red-300" />
+                <span>Cadastros Excluídos ({deletedUsers.length})</span>
               </button>
 
               <button
@@ -350,6 +456,66 @@ export const MasterDashboard: React.FC<MasterDashboardProps> = ({
             </div>
           ) : (
             <>
+              {/* Action Feedback Banner */}
+              {actionFeedback && (
+                <div className={`p-4 rounded-2xl border text-xs flex items-center justify-between shadow-sm animate-in fade-in duration-150 ${
+                  actionFeedback.type === 'success'
+                    ? 'bg-emerald-100 border-emerald-300 text-emerald-950 font-bold'
+                    : 'bg-red-100 border-red-300 text-red-950 font-bold'
+                }`}>
+                  <div className="flex items-center space-x-2">
+                    {actionFeedback.type === 'success' ? (
+                      <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-red-700 shrink-0" />
+                    )}
+                    <span>{actionFeedback.message}</span>
+                  </div>
+                  <button onClick={() => setActionFeedback(null)} className="text-gray-500 hover:text-gray-800 p-1">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {/* Delete Confirmation Modal */}
+              {userToDelete && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                  <div className="bg-[#FDFCF0] border-2 border-red-500 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in duration-150">
+                    <div className="w-12 h-12 rounded-full bg-red-100 border border-red-300 text-red-600 flex items-center justify-center mx-auto">
+                      <Trash2 className="w-6 h-6" />
+                    </div>
+
+                    <div className="text-center space-y-1">
+                      <h3 className="serif font-extrabold text-lg text-[#002147]">
+                        Confirmar Exclusão de Cadastro
+                      </h3>
+                      <p className="text-xs text-gray-700">
+                        Você tem certeza que deseja excluir o cadastro do fiel <strong className="text-[#002147]">{userToDelete.name}</strong> ({userToDelete.email})?
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl text-[11px] text-red-900 leading-relaxed">
+                      <strong>Aviso:</strong> O cadastro sairá desta lista e será transferido para a aba <strong>"Cadastros Excluídos"</strong>. O fiel perderá o acesso ao acervo até que seu registro seja restaurado.
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={() => setUserToDelete(null)}
+                        className="w-1/2 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold text-xs rounded-xl transition"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={confirmDeleteUser}
+                        className="w-1/2 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center space-x-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Sim, Excluir</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               {/* TAB 1: USERS APPROVALS */}
               {adminTab === 'users' && (
                 <div className="space-y-6">
@@ -491,11 +657,11 @@ export const MasterDashboard: React.FC<MasterDashboardProps> = ({
                                 {u.email?.toLowerCase() === MASTER_EMAIL ? (
                                   <span className="text-xs text-emerald-700 font-bold uppercase tracking-wider">Administrador Master</span>
                                 ) : (
-                                  <>
+                                  <div className="flex items-center justify-end space-x-1.5">
                                     {u.paymentStatus !== 'approved' && (
                                       <button
                                         onClick={() => handleApproveUser(u.id)}
-                                        className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold rounded-lg transition uppercase tracking-wider shadow"
+                                        className="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold rounded-lg transition uppercase tracking-wider shadow"
                                       >
                                         AUTORIZAR
                                       </button>
@@ -504,13 +670,105 @@ export const MasterDashboard: React.FC<MasterDashboardProps> = ({
                                     {u.paymentStatus === 'approved' && (
                                       <button
                                         onClick={() => handleRejectUser(u.id)}
-                                        className="px-3 py-1 bg-rose-100 hover:bg-rose-200 text-rose-800 text-[10px] font-bold rounded-lg transition uppercase tracking-wider"
+                                        className="px-2.5 py-1 bg-rose-100 hover:bg-rose-200 text-rose-800 text-[10px] font-bold rounded-lg transition uppercase tracking-wider"
                                       >
                                         Revogar
                                       </button>
                                     )}
-                                  </>
+
+                                    <button
+                                      onClick={() => openDeleteModal(u.id, u.name, u.email)}
+                                      className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold rounded-lg transition uppercase tracking-wider flex items-center space-x-1 shadow-sm"
+                                      title="Excluir cadastro"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                      <span>Excluir</span>
+                                    </button>
+                                  </div>
                                 )}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                </div>
+              )}
+
+              {/* TAB 2: DELETED USERS (CADASTROS EXCLUÍDOS) */}
+              {adminTab === 'deleted' && (
+                <div className="space-y-6">
+                  
+                  {/* Banner Explicativo */}
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-950 flex items-start space-x-3">
+                    <Archive className="w-5 h-5 text-red-700 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="font-bold text-red-900">
+                        Lista de Cadastros Excluídos (Lixeira do Sistema)
+                      </p>
+                      <p className="text-red-800 leading-relaxed">
+                        Estes cadastros foram removidos da tela principal de aprovações. Para que um fiel possa acessar novamente o acervo de orações e bíblia, clique no botão <strong>"Restaurar / Liberar Novamente"</strong> para reativar e aprovar a conta.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Filter Search */}
+                  <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
+                    <input
+                      type="text"
+                      placeholder="Buscar por nome ou e-mail na lixeira..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="px-3.5 py-2 rounded-xl border border-gray-300 text-xs bg-[#FDFCF0] focus:outline-none focus:ring-2 focus:ring-[#C5A059] w-full sm:w-80"
+                    />
+                    <span className="text-xs font-bold text-gray-500 hidden sm:inline">
+                      Total Excluídos: {deletedUsers.length}
+                    </span>
+                  </div>
+
+                  {/* Deleted Users Table */}
+                  <div className="overflow-x-auto border border-gray-200 rounded-2xl bg-white shadow-sm">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-[#800020] text-white uppercase tracking-wider text-[11px] font-bold">
+                          <th className="p-3.5">Fiel / E-mail</th>
+                          <th className="p-3.5">Data de Exclusão</th>
+                          <th className="p-3.5">Data de Registro Original</th>
+                          <th className="p-3.5 text-right">Ação do Master</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {filteredDeletedUsers.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="p-8 text-center text-gray-500">
+                              <Archive className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                              <p className="font-semibold">Nenhum cadastro excluído encontrado.</p>
+                              <p className="text-[11px] text-gray-400">Cadastros excluídos do painel principal aparecerão nesta área.</p>
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredDeletedUsers.map((u) => (
+                            <tr key={u.id} className="hover:bg-[#FDFCF0] transition">
+                              <td className="p-3.5">
+                                <div className="font-bold text-[#002147] line-through text-gray-700">{u.name}</div>
+                                <div className="text-gray-500 font-mono text-[11px]">{u.email}</div>
+                              </td>
+                              <td className="p-3.5 text-red-800 font-semibold">
+                                {u.deletedAt ? new Date(u.deletedAt).toLocaleDateString('pt-BR') : 'Recentemente'}
+                              </td>
+                              <td className="p-3.5 text-gray-600">
+                                {new Date(u.createdAt).toLocaleDateString('pt-BR')}
+                              </td>
+                              <td className="p-3.5 text-right">
+                                <button
+                                  onClick={() => handleRestoreUser(u.id, u.name)}
+                                  className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold rounded-lg transition uppercase tracking-wider shadow flex items-center space-x-1.5 ml-auto"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5 text-[#F1D592]" />
+                                  <span>Restaurar / Liberar Novamente</span>
+                                </button>
                               </td>
                             </tr>
                           ))
@@ -554,6 +812,106 @@ export const MasterDashboard: React.FC<MasterDashboardProps> = ({
                         </div>
                         <span className="text-[11px] text-slate-300 font-mono">Chave: {PIX_KEY}</span>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* HISTÓRICO DE TRANSAÇÕES COMPLETO */}
+                  <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
+                      <div>
+                        <h4 className="serif font-bold text-base text-[#002147] flex items-center space-x-2">
+                          <Receipt className="w-5 h-5 text-[#C5A059]" />
+                          <span>Histórico Geral de Transações & Pagamentos</span>
+                        </h4>
+                        <p className="text-xs text-gray-500">
+                          Registro em tempo real de todas as tentativas e liquidações de assinaturas (R$ 19,00).
+                        </p>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={fetchUsersList}
+                          className="px-3 py-1.5 bg-[#FDFCF0] hover:bg-gray-100 border border-[#C5A059]/40 text-[#002147] font-bold text-xs rounded-xl flex items-center space-x-1.5 transition"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5 text-[#C5A059]" />
+                          <span>Atualizar Dados</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto border border-gray-200 rounded-2xl">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-[#002147] text-white uppercase tracking-wider text-[11px] font-bold">
+                            <th className="p-3.5">Fiel / E-mail</th>
+                            <th className="p-3.5">Valor & Método</th>
+                            <th className="p-3.5">Cód. Transação</th>
+                            <th className="p-3.5">Data & Hora</th>
+                            <th className="p-3.5 text-right">Status do Pagamento</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {allPayments.length === 0 ? (
+                            <tr>
+                              <td colSpan={5} className="p-8 text-center text-gray-500">
+                                <Receipt className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                                <p className="font-semibold">Nenhuma transação registrada no momento.</p>
+                              </td>
+                            </tr>
+                          ) : (
+                            allPayments.map((pay) => (
+                              <tr key={pay.id} className="hover:bg-[#FDFCF0] transition">
+                                <td className="p-3.5">
+                                  <div className="font-bold text-[#002147]">{pay.userName}</div>
+                                  <div className="text-gray-500 font-mono text-[11px]">{pay.userEmail}</div>
+                                </td>
+                                <td className="p-3.5">
+                                  <span className="font-bold text-emerald-800">
+                                    R$ {pay.amount.toFixed(2).replace('.', ',')}
+                                  </span>
+                                  <span className="ml-2 px-2 py-0.5 bg-gray-100 text-gray-700 font-bold text-[10px] rounded-full uppercase">
+                                    {pay.paymentMethod}
+                                  </span>
+                                </td>
+                                <td className="p-3.5 font-mono text-[11px] text-gray-700">
+                                  {pay.transactionId}
+                                </td>
+                                <td className="p-3.5 text-gray-600">
+                                  {new Date(pay.date).toLocaleString('pt-BR', {
+                                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                                  })}
+                                </td>
+                                <td className="p-3.5 text-right">
+                                  <span className={`px-2.5 py-1 text-[10px] font-bold rounded-full uppercase tracking-wider inline-flex items-center space-x-1 ${
+                                    pay.status === 'approved'
+                                      ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                                      : pay.status === 'rejected'
+                                      ? 'bg-red-100 text-red-900 border border-red-300'
+                                      : 'bg-amber-100 text-amber-900 border border-amber-300'
+                                  }`}>
+                                    {pay.status === 'approved' ? (
+                                      <>
+                                        <CheckCircle2 className="w-3 h-3 text-emerald-700" />
+                                        <span>Aprovado</span>
+                                      </>
+                                    ) : pay.status === 'rejected' ? (
+                                      <>
+                                        <AlertCircle className="w-3 h-3 text-red-700" />
+                                        <span>Recusado</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <RefreshCw className="w-3 h-3 text-amber-700 animate-spin" />
+                                        <span>Aguardando PIX</span>
+                                      </>
+                                    )}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>

@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X, Cross, Mail, Lock, User, Phone, CheckCircle2, ShieldCheck, Sparkles,
-  ArrowRight, Key, Eye, EyeOff, AlertCircle, LogOut, Check, Shield
+  ArrowRight, Key, Eye, EyeOff, AlertCircle, LogOut, Check, Shield,
+  Receipt, Printer, FileText, CreditCard, RefreshCw
 } from 'lucide-react';
-import { UserAccount } from '../types';
+import { UserAccount, PaymentTransaction } from '../types';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -52,6 +53,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+
+  // Payment History & Receipt state
+  const [userPayments, setUserPayments] = useState<PaymentTransaction[]>([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
+  const [selectedReceipt, setSelectedReceipt] = useState<PaymentTransaction | null>(null);
+
+  useEffect(() => {
+    if (user && user.email) {
+      setLoadingPayments(true);
+      fetch(`/api/user/payments?email=${encodeURIComponent(user.email)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.payments) {
+            setUserPayments(data.payments);
+          }
+          setLoadingPayments(false);
+        })
+        .catch(() => setLoadingPayments(false));
+    }
+  }, [user, isOpen]);
 
   if (!isOpen) return null;
 
@@ -318,6 +339,159 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <span className="font-bold text-[#002147]">Acesso Único Premium (R$ 19,00)</span>
                 </div>
               </div>
+
+              {/* HISTÓRICO DE PAGAMENTOS */}
+              <div className="p-4 bg-[#FDFCF0] rounded-2xl border border-[#C5A059]/40 text-left space-y-3">
+                <div className="flex items-center justify-between border-b border-[#C5A059]/30 pb-2">
+                  <div className="flex items-center space-x-2 text-[#002147] font-bold text-xs">
+                    <Receipt className="w-4 h-4 text-[#C5A059]" />
+                    <span className="serif">Histórico de Pagamentos & Recibos</span>
+                  </div>
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">
+                    {userPayments.length} registro(s)
+                  </span>
+                </div>
+
+                {loadingPayments ? (
+                  <div className="py-4 text-center text-xs text-gray-500 flex items-center justify-center space-x-2">
+                    <RefreshCw className="w-4 h-4 animate-spin text-[#C5A059]" />
+                    <span>Carregando comprovantes...</span>
+                  </div>
+                ) : userPayments.length === 0 ? (
+                  <p className="text-xs text-gray-500 italic py-2 text-center">
+                    Nenhum comprovante registrado até o momento.
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {userPayments.map(pay => (
+                      <div
+                        key={pay.id}
+                        className="p-3 bg-white rounded-xl border border-gray-200 shadow-sm flex items-center justify-between hover:border-[#C5A059] transition"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-bold text-[#002147] text-xs">
+                              R$ {pay.amount.toFixed(2).replace('.', ',')}
+                            </span>
+                            <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 font-bold text-gray-700">
+                              {pay.paymentMethod.toUpperCase()}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-gray-500">
+                            {new Date(pay.date).toLocaleDateString('pt-BR', {
+                              day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                            })} • ID: <span className="font-mono">{pay.transactionId}</span>
+                          </p>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
+                            pay.status === 'approved'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-amber-100 text-amber-900'
+                          }`}>
+                            {pay.status === 'approved' ? 'Aprovado' : 'Pendente'}
+                          </span>
+
+                          <button
+                            onClick={() => setSelectedReceipt(pay)}
+                            className="p-1.5 bg-[#002147] text-[#F1D592] hover:bg-[#002147]/90 rounded-lg transition"
+                            title="Ver Comprovante / Recibo"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* RECEIPT MODAL POPUP */}
+              {selectedReceipt && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                  <div className="bg-white border-2 border-[#C5A059] rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in duration-150 text-left">
+                    
+                    <div className="flex items-center justify-between border-b pb-3 border-gray-200">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center text-[#002147] font-bold">
+                          <Cross className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="serif font-bold text-sm text-[#002147]">Comprovante de Pagamento</h4>
+                          <p className="text-[10px] text-gray-500">Fé e Vida Católica Premium</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setSelectedReceipt(null)}
+                        className="p-1 text-gray-400 hover:text-gray-600 rounded-full"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <div className="p-4 bg-[#FDFCF0] border border-[#C5A059]/40 rounded-2xl space-y-2 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Beneficiário:</span>
+                        <strong className="text-[#002147]">Fé e Vida Católica Ltda</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Fiel / Pagador:</span>
+                        <strong className="text-[#002147]">{selectedReceipt.userName}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">E-mail:</span>
+                        <span className="font-mono text-gray-700">{selectedReceipt.userEmail}</span>
+                      </div>
+                      <div className="flex justify-between border-t border-gray-200 pt-2">
+                        <span className="text-gray-500">Valor da Transação:</span>
+                        <strong className="text-emerald-700 font-mono text-sm">
+                          R$ {selectedReceipt.amount.toFixed(2).replace('.', ',')}
+                        </strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Forma de Pagamento:</span>
+                        <span className="font-bold uppercase text-[#002147]">{selectedReceipt.paymentMethod}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Código de Transação:</span>
+                        <span className="font-mono text-[11px] text-gray-800">{selectedReceipt.transactionId}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Data e Hora:</span>
+                        <span className="text-gray-700">
+                          {new Date(selectedReceipt.date).toLocaleString('pt-BR')}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t border-gray-200 pt-2">
+                        <span className="text-gray-500">Status do Processamento:</span>
+                        <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                          selectedReceipt.status === 'approved'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-amber-100 text-amber-900'
+                        }`}>
+                          {selectedReceipt.status === 'approved' ? 'APROVADO & LIBERADO' : 'AGUARDANDO CONFIRMAÇÃO'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-[10px] text-gray-500 text-center italic">
+                      "Dai, e ser-vos-á dado: boa medida, recalcada, sacudida e transbordante." — São Lucas 6, 38
+                    </div>
+
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => window.print()}
+                        className="w-full py-2.5 bg-[#002147] text-[#F1D592] font-bold text-xs rounded-xl hover:bg-[#002147]/90 transition flex items-center justify-center space-x-1.5"
+                      >
+                        <Printer className="w-4 h-4 text-[#C5A059]" />
+                        <span>Imprimir / Salvar PDF</span>
+                      </button>
+                    </div>
+
+                  </div>
+                </div>
+              )}
 
               {user?.paymentStatus !== 'approved' && user?.role !== 'admin' && (
                 <button
