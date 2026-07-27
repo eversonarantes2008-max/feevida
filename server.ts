@@ -525,8 +525,29 @@ Retorne a resposta estritamente em formato JSON com a seguinte estrutura:
       contents: prompt
     });
 
-    const cleanJson = response.text?.replace(/```json/g, '').replace(/```/g, '').trim();
-    const storyData = JSON.parse(cleanJson || '{}');
+    let storyData: any = {};
+    try {
+      const cleanJson = response.text?.replace(/```json/g, '').replace(/```/g, '').trim() || '{}';
+      const firstBrace = cleanJson.indexOf('{');
+      const lastBrace = cleanJson.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        storyData = JSON.parse(cleanJson.substring(firstBrace, lastBrace + 1));
+      } else {
+        storyData = JSON.parse(cleanJson);
+      }
+    } catch (parseErr) {
+      console.warn('Fallback story parse for kids-story:', parseErr);
+      storyData = {
+        title: topic || 'História de Fé',
+        subtitle: 'Uma linda história bíblica para abençoar seu dia',
+        moralLesson: 'Deus nos ama incondicionalmente e sempre cuida das crianças.',
+        biblicalReference: 'Bíblia Sagrada',
+        narratorAudioText: response.text || 'Deus abençoe todas as crianças com paz e alegria.',
+        sections: [
+          { heading: '1. Ensinamento de Fé', text: response.text || 'Deus guarda e protege cada um de seus filhos com amor infinito.' }
+        ]
+      };
+    }
 
     return res.json({ story: storyData });
   } catch (err: any) {

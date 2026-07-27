@@ -313,13 +313,24 @@ export const MasterDashboard: React.FC<MasterDashboardProps> = ({
             </div>
 
             {isAuthenticatedMaster && (
-              <button
-                onClick={fetchUsersList}
-                className="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 text-[#F1D592] rounded-xl text-xs font-bold border border-[#C5A059]/40 flex items-center space-x-1.5 transition"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-                <span>Atualizar Dados</span>
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={onClose}
+                  className="px-3.5 py-1.5 bg-[#C5A059] hover:bg-[#b08c48] text-[#002147] rounded-xl text-xs font-extrabold flex items-center space-x-1.5 transition shadow"
+                  title="Sair do Dashboard e ir para o Aplicativo"
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>Voltar ao Aplicativo</span>
+                </button>
+
+                <button
+                  onClick={fetchUsersList}
+                  className="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 text-[#F1D592] rounded-xl text-xs font-bold border border-[#C5A059]/40 flex items-center space-x-1.5 transition"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Atualizar</span>
+                </button>
+              </div>
             )}
           </div>
 

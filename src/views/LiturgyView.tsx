@@ -5,6 +5,40 @@ import { TODAY_LITURGY, LITURGY_OF_HOURS, ROMAN_MISSAL_PARTS } from '../data/cnb
 export const LiturgyView: React.FC = () => {
   const [subTab, setSubTab] = useState<'diaria' | 'horas' | 'missal'>('diaria');
   const [hourSection, setHourSection] = useState<'laudes' | 'horaMedia' | 'vesperas' | 'completas'>('laudes');
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+
+  const handleSpeech = (text: string) => {
+    if ('speechSynthesis' in window) {
+      if (isPlayingAudio) {
+        window.speechSynthesis.cancel();
+        setIsPlayingAudio(false);
+      } else {
+        window.speechSynthesis.cancel();
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'pt-BR';
+        utterance.rate = 0.9;
+
+        const voices = window.speechSynthesis.getVoices();
+        const ptVoice = voices.find(v => v.lang.startsWith('pt') || v.lang.includes('BR') || v.lang.includes('PT'));
+        if (ptVoice) {
+          utterance.voice = ptVoice;
+        }
+
+        utterance.onstart = () => setIsPlayingAudio(true);
+        utterance.onend = () => setIsPlayingAudio(false);
+        utterance.onerror = () => setIsPlayingAudio(false);
+
+        window.speechSynthesis.speak(utterance);
+        setIsPlayingAudio(true);
+      }
+    } else {
+      alert('Seu navegador não suporta leitura em áudio.');
+    }
+  };
 
   return (
     <div className="space-y-8 pb-12">
@@ -52,7 +86,7 @@ export const LiturgyView: React.FC = () => {
         <div className="space-y-6">
           
           {/* Header */}
-          <div className="bg-[#0B1B3D] text-[#FDFBF7] p-6 rounded-2xl border border-[#D4AF37]/30 shadow-lg text-center space-y-2">
+          <div className="bg-[#0B1B3D] text-[#FDFBF7] p-6 rounded-2xl border border-[#D4AF37]/30 shadow-lg text-center space-y-3">
             <span className="inline-block px-3 py-1 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#F3E5AB] text-xs font-bold uppercase tracking-wider">
               {TODAY_LITURGY.colorName}
             </span>
@@ -60,6 +94,23 @@ export const LiturgyView: React.FC = () => {
               Liturgia Diária do Dia
             </h2>
             <p className="text-xs text-slate-300 font-serif">{TODAY_LITURGY.date}</p>
+
+            <div className="pt-2">
+              <button
+                onClick={() => {
+                  const textToRead = `Liturgia Diária. Primeira leitura: ${TODAY_LITURGY.firstReading.text}. Salmo Responsorial: Refrão: ${TODAY_LITURGY.psalm.response}. ${TODAY_LITURGY.psalm.stanzas.join(' ')}. Santo Evangelho: ${TODAY_LITURGY.gospel.text}`;
+                  handleSpeech(textToRead);
+                }}
+                className={`px-5 py-2.5 rounded-full text-xs font-bold transition inline-flex items-center space-x-2 ${
+                  isPlayingAudio
+                    ? 'bg-[#D4AF37] text-[#0B1B3D] animate-pulse border border-white'
+                    : 'bg-white/10 text-[#F3E5AB] hover:bg-white/20 border border-[#D4AF37]/50 shadow-md'
+                }`}
+              >
+                <Volume2 className="w-4 h-4 text-[#D4AF37]" />
+                <span>{isPlayingAudio ? 'Parar Leitura da Liturgia' : 'Ouvir Liturgia Diária em Áudio'}</span>
+              </button>
+            </div>
           </div>
 
           {/* 1ª Leitura */}

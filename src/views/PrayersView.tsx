@@ -57,6 +57,7 @@ export const PrayersView: React.FC = () => {
         utterance.lang = 'pt-BR';
         utterance.rate = 0.9;
         utterance.onend = () => setSpeakingPrayerId(null);
+        utterance.onerror = () => setSpeakingPrayerId(null);
         window.speechSynthesis.speak(utterance);
         setSpeakingPrayerId(id);
       }

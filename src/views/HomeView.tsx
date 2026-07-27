@@ -26,6 +26,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate, onOpenCheckout, 
         const utterance = new SpeechSynthesisUtterance(textToRead);
         utterance.lang = 'pt-BR';
         utterance.onend = () => setIsPlayingAudio(false);
+        utterance.onerror = () => setIsPlayingAudio(false);
         window.speechSynthesis.speak(utterance);
         setIsPlayingAudio(true);
       }

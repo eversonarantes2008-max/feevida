@@ -99,6 +99,7 @@ export const BibleView: React.FC = () => {
         utterance.lang = 'pt-BR';
         utterance.rate = 0.9;
         utterance.onend = () => setIsPlayingAudio(false);
+        utterance.onerror = () => setIsPlayingAudio(false);
         window.speechSynthesis.speak(utterance);
         setIsPlayingAudio(true);
       }

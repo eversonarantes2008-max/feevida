@@ -88,26 +88,79 @@ export const KidsView: React.FC = () => {
     startMemoryGame();
   }, []);
 
-  // Handle Speech Narration
-  const handleSpeechNarration = (text: string) => {
+  // Initialize Speech Synthesis Voices
+  useEffect(() => {
     if ('speechSynthesis' in window) {
-      if (isPlayingNarration || isPlayingPrayerAudio) {
+      window.speechSynthesis.getVoices();
+      const handleVoicesChanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+      window.speechSynthesis.onvoiceschanged = handleVoicesChanged;
+      return () => {
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.onvoiceschanged = null;
+        }
+      };
+    }
+  }, []);
+
+  // Handle Speech Narration
+  const handleSpeechNarration = (text: string, isPrayer = false) => {
+    if ('speechSynthesis' in window) {
+      if ((isPrayer && isPlayingPrayerAudio) || (!isPrayer && isPlayingNarration)) {
         window.speechSynthesis.cancel();
         setIsPlayingNarration(false);
         setIsPlayingPrayerAudio(false);
       } else {
+        // Stop any active speech first
+        window.speechSynthesis.cancel();
+
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'pt-BR';
         utterance.rate = 0.9; // Soft kid-friendly speed
+
+        const voices = window.speechSynthesis.getVoices();
+        const ptVoice = voices.find(v => v.lang.startsWith('pt') || v.lang.includes('BR') || v.lang.includes('PT'));
+        if (ptVoice) {
+          utterance.voice = ptVoice;
+        }
+
+        utterance.onstart = () => {
+          if (isPrayer) {
+            setIsPlayingPrayerAudio(true);
+            setIsPlayingNarration(false);
+          } else {
+            setIsPlayingNarration(true);
+            setIsPlayingPrayerAudio(false);
+          }
+        };
+
         utterance.onend = () => {
           setIsPlayingNarration(false);
           setIsPlayingPrayerAudio(false);
         };
+
+        utterance.onerror = (e) => {
+          console.warn('Speech error in KidsView:', e);
+          setIsPlayingNarration(false);
+          setIsPlayingPrayerAudio(false);
+        };
+
         window.speechSynthesis.speak(utterance);
-        setIsPlayingNarration(true);
+        if (isPrayer) {
+          setIsPlayingPrayerAudio(true);
+          setIsPlayingNarration(false);
+        } else {
+          setIsPlayingNarration(true);
+          setIsPlayingPrayerAudio(false);
+        }
       }
     } else {
-      alert('Seu navegador não suporta áudio sintético.');
+      alert('Seu navegador não suporta leitura em áudio sintético.');
     }
   };
 
@@ -423,7 +476,20 @@ export const KidsView: React.FC = () => {
                 </div>
                 <div className="pt-2 mt-2 border-t border-gray-100 flex items-center justify-between text-[11px] font-bold text-amber-900">
                   <span>{story.biblicalReference}</span>
-                  <span className="text-emerald-700 font-semibold">Ouvir áudio →</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedStory(story);
+                      const fullText = `${story.title}. ${story.subtitle}. ${story.narratorAudioText}. ` +
+                        (story.sections || []).map(s => `${s.heading}: ${s.text}`).join('. ');
+                      handleSpeechNarration(fullText, false);
+                    }}
+                    className="text-emerald-700 font-bold hover:underline flex items-center gap-1"
+                  >
+                    <Volume2 className="w-3.5 h-3.5" />
+                    <span>Ouvir áudio →</span>
+                  </button>
                 </div>
               </div>
             ))}
@@ -440,15 +506,19 @@ export const KidsView: React.FC = () => {
               </div>
 
               <button
-                onClick={() => handleSpeechNarration(selectedStory.narratorAudioText)}
+                onClick={() => {
+                  const fullText = `${selectedStory.title}. ${selectedStory.subtitle}. ${selectedStory.narratorAudioText}. ` +
+                    (selectedStory.sections || []).map(s => `${s.heading}: ${s.text}`).join('. ');
+                  handleSpeechNarration(fullText, false);
+                }}
                 className={`px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center space-x-2 ${
                   isPlayingNarration
-                    ? 'bg-amber-500 text-amber-950 animate-pulse'
+                    ? 'bg-amber-500 text-amber-950 animate-pulse border border-amber-600 shadow-md'
                     : 'bg-[#002147] text-[#F1D592] hover:bg-[#002147]/90 border border-[#C5A059] shadow-md'
                 }`}
               >
                 <Volume2 className="w-4 h-4" />
-                <span>{isPlayingNarration ? 'Parar Narração' : 'Ouvir Narração da História'}</span>
+                <span>{isPlayingNarration ? 'Parar Narração' : 'Ouvir Narração Completa'}</span>
               </button>
             </div>
 

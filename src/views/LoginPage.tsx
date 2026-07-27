@@ -12,6 +12,8 @@ interface LoginPageProps {
   onOpenCheckout?: () => void;
   user: UserAccount | null;
   onLogout?: () => void;
+  onOpenMasterDashboard?: () => void;
+  onNavigateToApp?: () => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({
@@ -19,7 +21,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   onNavigateToRegister,
   onOpenCheckout,
   user,
-  onLogout
+  onLogout,
+  onOpenMasterDashboard,
+  onNavigateToApp
 }) => {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -195,6 +199,38 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               </div>
             )}
           </div>
+
+          {/* Admin Master Navigation Options */}
+          {user.role === 'admin' && (
+            <div className="p-4 bg-emerald-950/10 border-2 border-emerald-500/40 rounded-2xl space-y-3">
+              <div className="flex items-center space-x-2 text-emerald-900 font-bold text-xs uppercase tracking-wider">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>Opções do Administrador Master</span>
+              </div>
+              <p className="text-xs text-gray-600">
+                Como Master, você tem acesso irrestrito ao aplicativo de orações e ao painel completo de controle. Escolha para onde deseja ir:
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {onNavigateToApp && (
+                  <button
+                    onClick={onNavigateToApp}
+                    className="py-3 px-4 bg-[#002147] hover:bg-[#002147]/90 text-[#F1D592] font-bold text-xs rounded-xl shadow transition flex items-center justify-center space-x-2 border border-[#C5A059]"
+                  >
+                    <span>📖 Entrar no Aplicativo</span>
+                  </button>
+                )}
+
+                {onOpenMasterDashboard && (
+                  <button
+                    onClick={onOpenMasterDashboard}
+                    className="py-3 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs rounded-xl shadow transition flex items-center justify-center space-x-2 border border-emerald-500"
+                  >
+                    <span>🛡️ Abrir Painel Dashboard</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Action buttons */}
           <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-100">

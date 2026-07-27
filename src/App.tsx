@@ -107,6 +107,45 @@ export function App() {
       {/* Main Container */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 pt-6 pb-24">
         
+        {/* Master Admin Status & Switcher Banner */}
+        {currentUser?.role === 'admin' && (
+          <div className="mb-6 p-4 rounded-2xl bg-[#002147] text-white border-2 border-emerald-500 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3 z-10 relative">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-400 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-6 h-6 text-emerald-400" />
+              </div>
+              <div>
+                <h4 className="serif font-bold text-sm sm:text-base text-emerald-300">
+                  Administrador Master Conectado (Acesso Total Liberado)
+                </h4>
+                <p className="text-xs text-gray-300">
+                  Você possui acesso irrestrito ao aplicativo e ao Painel de Controle separado.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+              <button
+                onClick={() => { setActiveTab('hoje'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl text-xs font-bold transition border flex items-center justify-center space-x-1.5 ${
+                  activeTab !== 'login'
+                    ? 'bg-[#C5A059] text-[#002147] border-[#F1D592]'
+                    : 'bg-white/10 text-white hover:bg-white/20 border-white/20'
+                }`}
+              >
+                <span>📱 Ver Aplicativo</span>
+              </button>
+
+              <button
+                onClick={() => setIsMasterDashOpen(true)}
+                className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-lg transition flex items-center justify-center space-x-1.5 border border-emerald-400"
+              >
+                <span>🛡️ Painel Dashboard</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Payment Gate Banner if user is pending authorization */}
         {!isUnlocked && (
           <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-[#002147] text-white border-2 border-[#C5A059] shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 z-10 relative">
@@ -170,6 +209,8 @@ export function App() {
                 onOpenCheckout={() => setIsCheckoutOpen(true)}
                 user={currentUser}
                 onLogout={handleLogout}
+                onOpenMasterDashboard={() => setIsMasterDashOpen(true)}
+                onNavigateToApp={() => setActiveTab('hoje')}
               />
             )}
 
