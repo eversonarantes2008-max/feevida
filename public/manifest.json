@@ -1,0 +1,21 @@
+{
+  "name": "Fé e Vida Católica Premium",
+  "short_name": "Fé e Vida",
+  "description": "Aplicativo Católico Oficial - Liturgia CNBB, Bíblia Sagrada, Terço, Liturgia das Horas e Conteúdo Infantil.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FDFBF7",
+  "theme_color": "#0B1B3D",
+  "icons": [
+    {
+      "src": "/pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

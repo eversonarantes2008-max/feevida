@@ -1,0 +1,6 @@
+{
+  "name": "Fé e Vida Católica Premium",
+  "description": "Aplicativo Católico Premium oficial com Liturgia CNBB, Bíblia Sagrada, Terço, Liturgia das Horas, Catecismo e Área Infantil.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #FDFCF0;
+    color: #002147;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1, h2, h3, .serif, .font-serif-title {
+    font-family: 'Playfair Display', 'Cinzel', 'Cormorant Garamond', serif;
+  }
+
+  .font-garamond {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+  }
+
+  .font-inter {
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+/* Texture overlays */
+.texture-overlay {
+  background-image: radial-gradient(#C5A059 0.5px, transparent 0.5px);
+  background-size: 24px 24px;
+  opacity: 0.05;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bg-linen {
+  background-color: #FDFCF0;
+  background-image: radial-gradient(#C5A059 0.5px, transparent 0.5px);
+  background-size: 24px 24px;
+}
+
+.navy-panel, .bg-velvet-navy {
+  background-color: #002147;
+}
+
+.bg-wine, .bg-velvet-wine {
+  background-color: #800020;
+}
+
+.pearl-bg {
+  background-color: #FDFCF0;
+}
+
+.border-gold {
+  border-color: #C5A059;
+}
+
+.text-gold {
+  color: #C5A059;
+}
+
+/* Luxurious Gold Gradient Text and Backgrounds */
+.gold-gradient, .gold-gradient-bg {
+  background: linear-gradient(135deg, #D4AF37 0%, #F1D592 50%, #B8860B 100%);
+}
+
+.gold-gradient-text {
+  background: linear-gradient(135deg, #D4AF37 0%, #F1D592 50%, #B8860B 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gold-gradient-border {
+  border-image: linear-gradient(135deg, #D4AF37, #F1D592, #B8860B) 1;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(197, 160, 89, 0.3);
+}
+
+.navy-glass {
+  background: rgba(0, 33, 71, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(197, 160, 89, 0.3);
+}
+
+.gold-glow {
+  box-shadow: 0 0 20px rgba(197, 160, 89, 0.25);
+}
+
+.wine-glow {
+  box-shadow: 0 0 20px rgba(128, 0, 32, 0.3);
+}
+
+/* Sacred Shimmer Effect */
+@keyframes sacredShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(197,160,89,0.15) 50%, rgba(255,255,255,0) 100%);
+  background-size: 200% 100%;
+  animation: sacredShimmer 3s infinite;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FDFCF0;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C5A059;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #B8860B;
+}
