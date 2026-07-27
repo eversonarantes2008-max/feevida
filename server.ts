@@ -29,6 +29,8 @@ interface UserRecord {
   id: string;
   email: string;
   name: string;
+  password?: string;
+  phone?: string;
   role: 'user' | 'admin';
   paymentStatus: 'pending' | 'approved' | 'rejected';
   paymentMethod?: 'pix' | 'card' | 'boleto';
@@ -84,6 +86,51 @@ app.get('/api/health', (req: Request, res: Response) => {
 });
 
 // Auth Routes
+app.post('/api/auth/register', (req: Request, res: Response) => {
+  const { name, email, password, phone, planType } = req.body;
+
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Informe um e-mail válido.' });
+  }
+  if (!name || name.trim().length < 2) {
+    return res.status(400).json({ error: 'Informe seu nome completo.' });
+  }
+  if (!password || password.length < 4) {
+    return res.status(400).json({ error: 'A senha deve conter no mínimo 4 caracteres.' });
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+  const existing = usersDatabase.find(u => u.email.toLowerCase() === cleanEmail);
+
+  if (existing) {
+    return res.status(400).json({
+      error: 'Já existe uma conta cadastrada com este e-mail. Faça login para acessar.'
+    });
+  }
+
+  const newUser: UserRecord = {
+    id: `usr_${Date.now()}`,
+    email: cleanEmail,
+    name: name.trim(),
+    password: password,
+    phone: phone ? phone.trim() : undefined,
+    role: cleanEmail === MASTER_EMAIL.toLowerCase() ? 'admin' : 'user',
+    paymentStatus: cleanEmail === MASTER_EMAIL.toLowerCase() ? 'approved' : 'pending',
+    paymentMethod: 'pix',
+    planType: planType === 'annual' ? 'annual' : 'single',
+    createdAt: new Date().toISOString()
+  };
+
+  usersDatabase.push(newUser);
+
+  return res.json({
+    success: true,
+    token: `user_token_${newUser.id}`,
+    user: newUser,
+    message: 'Conta criada com sucesso! Conclua o pagamento de R$ 19,00 para liberar seu acesso.'
+  });
+});
+
 app.post('/api/auth/login', (req: Request, res: Response) => {
   const { email, password } = req.body;
 
@@ -91,45 +138,62 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'E-mail é obrigatório.' });
   }
 
+  const cleanEmail = email.toLowerCase().trim();
+
   // Master Login Check
-  if (email.toLowerCase().trim() === MASTER_EMAIL.toLowerCase() && password === MASTER_PASS_HASH) {
-    const masterUser = usersDatabase.find(u => u.email.toLowerCase() === MASTER_EMAIL.toLowerCase());
-    return res.json({
-      success: true,
-      token: 'master_auth_token_987213',
-      user: masterUser || {
-        id: 'usr_master_001',
-        email: MASTER_EMAIL,
-        name: 'Everson Arantes (Master)',
-        role: 'admin',
-        paymentStatus: 'approved',
-        planType: 'single',
-        createdAt: new Date().toISOString()
+  if (cleanEmail === MASTER_EMAIL.toLowerCase()) {
+    if (password === MASTER_PASS_HASH) {
+      let masterUser = usersDatabase.find(u => u.email.toLowerCase() === MASTER_EMAIL.toLowerCase());
+      if (!masterUser) {
+        masterUser = {
+          id: 'usr_master_001',
+          email: MASTER_EMAIL,
+          name: 'Everson Arantes (Master)',
+          role: 'admin',
+          paymentStatus: 'approved',
+          planType: 'single',
+          createdAt: new Date().toISOString()
+        };
+        usersDatabase.push(masterUser);
       }
+      return res.json({
+        success: true,
+        token: 'master_auth_token_987213',
+        user: masterUser
+      });
+    } else {
+      return res.status(401).json({ error: 'Senha de Administrador Master incorreta.' });
+    }
+  }
+
+  // Regular user check
+  const existing = usersDatabase.find(u => u.email.toLowerCase() === cleanEmail);
+  if (!existing) {
+    return res.status(404).json({
+      error: 'E-mail não encontrado em nossa base de fiéis. Clique em "Criar Nova Conta" para se cadastrar.'
     });
   }
 
-  // Regular user check or auto registration
-  let existing = usersDatabase.find(u => u.email.toLowerCase() === email.toLowerCase().trim());
-  if (!existing) {
-    // Register as new pending user
-    existing = {
-      id: `usr_${Date.now()}`,
-      email: email.trim(),
-      name: email.split('@')[0],
-      role: 'user',
-      paymentStatus: 'pending',
-      paymentMethod: 'pix',
-      planType: 'single',
-      createdAt: new Date().toISOString()
-    };
-    usersDatabase.push(existing);
+  // Validate password if user has password set
+  if (existing.password && password && existing.password !== password) {
+    return res.status(401).json({ error: 'Senha incorreta. Verifique os dados digitados.' });
   }
 
   return res.json({
     success: true,
     token: `user_token_${existing.id}`,
     user: existing
+  });
+});
+
+app.post('/api/auth/forgot-password', (req: Request, res: Response) => {
+  const { email } = req.body;
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Informe um e-mail válido para redefinição.' });
+  }
+  return res.json({
+    success: true,
+    message: `Enviamos as instruções de redefinição de senha para o e-mail: ${email}`
   });
 });
 

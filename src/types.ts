@@ -6,6 +6,7 @@ export interface UserAccount {
   id: string;
   email: string;
   name: string;
+  phone?: string;
   avatarUrl?: string;
   role: UserRole;
   paymentStatus: PaymentStatus;

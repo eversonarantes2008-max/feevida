@@ -4,6 +4,7 @@ import { Navbar } from './components/Navbar';
 import { BottomNav, ActiveTab } from './components/BottomNav';
 import { LandingCheckoutModal } from './components/LandingCheckoutModal';
 import { MasterDashboard } from './components/MasterDashboard';
+import { AuthModal } from './components/AuthModal';
 import { HomeView } from './views/HomeView';
 import { LiturgyView } from './views/LiturgyView';
 import { BibleView } from './views/BibleView';
@@ -25,6 +26,8 @@ export function App() {
 
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isMasterDashOpen, setIsMasterDashOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
 
   // PWA Prompt event handler
   const [pwaDeferredPrompt, setPwaDeferredPrompt] = useState<any>(null);
@@ -65,6 +68,11 @@ export function App() {
   // Is content unlocked? User is admin OR user paymentStatus is approved
   const isUnlocked = currentUser?.role === 'admin' || currentUser?.paymentStatus === 'approved';
 
+  const handleOpenAuth = (tab: 'login' | 'register' = 'login') => {
+    setAuthTab(tab);
+    setIsAuthOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-[#FDFCF0] text-[#002147] flex flex-col font-sans selection:bg-[#C5A059]/30 selection:text-[#002147] relative overflow-x-hidden">
       <div className="texture-overlay"></div>
@@ -73,6 +81,7 @@ export function App() {
       <Navbar
         user={currentUser}
         onOpenCheckout={() => setIsCheckoutOpen(true)}
+        onOpenAuth={handleOpenAuth}
         onOpenMasterDashboard={() => setIsMasterDashOpen(true)}
         onLogout={handleLogout}
         isPwaInstallable={!!pwaDeferredPrompt}
@@ -158,6 +167,16 @@ export function App() {
         onClose={() => setIsMasterDashOpen(false)}
         currentUser={currentUser}
         onMasterLoginSuccess={handleLoginSuccess}
+      />
+
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        initialTab={authTab}
+        onLoginSuccess={handleLoginSuccess}
+        onOpenCheckout={() => setIsCheckoutOpen(true)}
+        user={currentUser}
+        onLogout={handleLogout}
       />
 
     </div>

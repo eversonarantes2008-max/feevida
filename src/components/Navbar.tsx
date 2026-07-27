@@ -5,6 +5,7 @@ import { UserAccount } from '../types';
 interface NavbarProps {
   user: UserAccount | null;
   onOpenCheckout: () => void;
+  onOpenAuth: (tab?: 'login' | 'register') => void;
   onOpenMasterDashboard: () => void;
   onLogout: () => void;
   isPwaInstallable: boolean;
@@ -14,6 +15,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   user,
   onOpenCheckout,
+  onOpenAuth,
   onOpenMasterDashboard,
   onLogout,
   isPwaInstallable,
@@ -70,20 +72,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
                   <span className="font-bold">Painel Master</span>
                 </button>
-              ) : user.paymentStatus === 'approved' ? (
-                <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#C5A059]/20 text-[#F1D592] border border-[#C5A059]/50 text-xs">
-                  <UserCheck className="w-3.5 h-3.5 text-[#C5A059]" />
-                  <span className="hidden md:inline font-medium">Assinante Premium</span>
-                </div>
               ) : (
                 <button
-                  onClick={onOpenCheckout}
-                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold gold-gradient text-[#002147] hover:opacity-95 transition shadow-md uppercase tracking-wider"
+                  onClick={() => onOpenAuth('login')}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-[#F1D592] border border-[#C5A059]/50 text-xs font-semibold transition"
+                  title="Minha Conta"
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Página de Vendas (R$ 19)</span>
+                  <UserCheck className="w-3.5 h-3.5 text-[#C5A059]" />
+                  <span className="max-w-[100px] truncate">{user.name || 'Minha Conta'}</span>
                 </button>
               )}
+
+              <button
+                onClick={onOpenCheckout}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold gold-gradient text-[#002147] hover:opacity-95 transition shadow-md uppercase tracking-wider"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Assinar (R$ 19)</span>
+              </button>
 
               <button
                 onClick={onLogout}
@@ -95,20 +101,29 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           ) : (
             <div className="flex items-center space-x-2">
+              {/* Login Button */}
               <button
-                onClick={onOpenMasterDashboard}
-                className="p-2 text-gray-300 hover:text-[#C5A059] transition rounded-full hover:bg-white/10"
-                title="Acesso Master"
+                onClick={() => onOpenAuth('login')}
+                className="px-3 py-1.5 rounded-full text-xs font-bold text-[#F1D592] hover:bg-white/10 border border-[#C5A059]/40 transition"
               >
-                <Key className="w-4 h-4" />
+                Entrar
               </button>
 
+              {/* Register / Sales Page Button */}
               <button
-                onClick={onOpenCheckout}
+                onClick={() => onOpenAuth('register')}
                 className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold gold-gradient text-[#002147] hover:opacity-95 transition shadow-md uppercase tracking-wider"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Página de Vendas (R$ 19,00)</span>
+                <span>Criar Conta (R$ 19)</span>
+              </button>
+
+              <button
+                onClick={onOpenMasterDashboard}
+                className="p-1.5 text-gray-400 hover:text-[#C5A059] transition rounded-full hover:bg-white/10"
+                title="Acesso Master"
+              >
+                <Key className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
