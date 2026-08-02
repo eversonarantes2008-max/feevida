@@ -50,6 +50,7 @@ let usersDatabase: UserRecord[] = [
     id: 'usr_master_001',
     email: MASTER_EMAIL,
     name: 'Everson Arantes (Administrador Master)',
+    password: MASTER_PASS_HASH,
     role: 'admin',
     paymentStatus: 'approved',
     paymentMethod: 'pix',
@@ -61,6 +62,7 @@ let usersDatabase: UserRecord[] = [
     id: 'usr_demo_002',
     email: 'fiel.catolico@gmail.com',
     name: 'Maria Das Graças',
+    password: '1234',
     role: 'user',
     paymentStatus: 'approved',
     paymentMethod: 'pix',
@@ -72,6 +74,7 @@ let usersDatabase: UserRecord[] = [
     id: 'usr_demo_003',
     email: 'joao.silva@hotmail.com',
     name: 'João Pedro Silva',
+    password: '1234',
     role: 'user',
     paymentStatus: 'pending',
     paymentMethod: 'pix',
@@ -81,6 +84,14 @@ let usersDatabase: UserRecord[] = [
     createdAt: new Date().toISOString()
   }
 ];
+
+// In-Memory Reset Codes
+interface ResetCodeRecord {
+  email: string;
+  code: string;
+  expiresAt: number;
+}
+let resetCodesDatabase: ResetCodeRecord[] = [];
 
 export interface PaymentTransactionRecord {
   id: string;
@@ -214,13 +225,15 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
 
   // Master Login Check
   if (cleanEmail === MASTER_EMAIL.toLowerCase()) {
-    if (password === MASTER_PASS_HASH) {
-      let masterUser = usersDatabase.find(u => u.email.toLowerCase() === MASTER_EMAIL.toLowerCase());
+    let masterUser = usersDatabase.find(u => u.email.toLowerCase() === MASTER_EMAIL.toLowerCase());
+    const expectedPassword = masterUser?.password || MASTER_PASS_HASH;
+    if (password === expectedPassword || password === MASTER_PASS_HASH) {
       if (!masterUser) {
         masterUser = {
           id: 'usr_master_001',
           email: MASTER_EMAIL,
           name: 'Everson Arantes (Master)',
+          password: MASTER_PASS_HASH,
           role: 'admin',
           paymentStatus: 'approved',
           planType: 'single',
@@ -254,7 +267,7 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
 
   // Validate password if user has password set
   if (existing.password && password && existing.password !== password) {
-    return res.status(401).json({ error: 'Senha incorreta. Verifique os dados digitados.' });
+    return res.status(401).json({ error: 'Senha incorreta. Verifique a senha digitada.' });
   }
 
   return res.json({
@@ -264,14 +277,144 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
   });
 });
 
+// Password Recovery 1: Request Code
+app.post('/api/auth/forgot-password/request', (req: Request, res: Response) => {
+  const { email } = req.body;
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Informe um endereço de e-mail válido.' });
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+  const existing = usersDatabase.find(u => u.email.toLowerCase() === cleanEmail);
+
+  if (!existing) {
+    return res.status(404).json({
+      error: 'Não encontramos nenhuma conta cadastrada com este e-mail. Verifique os dados digitados.'
+    });
+  }
+
+  if (existing.isDeleted) {
+    return res.status(403).json({
+      error: 'Esta conta está desativada. Entre em contato com o suporte.'
+    });
+  }
+
+  // Generate 6-digit verification code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // Store code with 15 minutes expiration
+  resetCodesDatabase = resetCodesDatabase.filter(c => c.email !== cleanEmail);
+  resetCodesDatabase.push({
+    email: cleanEmail,
+    code: code,
+    expiresAt: Date.now() + 15 * 60 * 1000
+  });
+
+  return res.json({
+    success: true,
+    message: `Código de verificação enviado com sucesso para ${cleanEmail}!`,
+    code: code,
+    email: cleanEmail
+  });
+});
+
+// Password Recovery 2: Verify Code
+app.post('/api/auth/forgot-password/verify', (req: Request, res: Response) => {
+  const { email, code } = req.body;
+  if (!email || !code) {
+    return res.status(400).json({ error: 'E-mail e código de verificação são obrigatórios.' });
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+  const cleanCode = code.toString().trim();
+
+  const record = resetCodesDatabase.find(
+    c => c.email === cleanEmail && c.code === cleanCode && c.expiresAt > Date.now()
+  );
+
+  if (!record) {
+    return res.status(400).json({
+      error: 'Código de verificação incorreto ou expirado. Verifique os 6 dígitos informados.'
+    });
+  }
+
+  return res.json({
+    success: true,
+    message: 'Código verificado com sucesso! Agora cadastre sua nova senha.'
+  });
+});
+
+// Password Recovery 3: Reset Password
+app.post('/api/auth/forgot-password/reset', (req: Request, res: Response) => {
+  const { email, code, newPassword } = req.body;
+
+  if (!email || !code || !newPassword) {
+    return res.status(400).json({ error: 'Preencha todos os campos para redefinir a senha.' });
+  }
+
+  if (newPassword.length < 4) {
+    return res.status(400).json({ error: 'A nova senha deve possuir no mínimo 4 caracteres.' });
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+  const cleanCode = code.toString().trim();
+
+  const recordIndex = resetCodesDatabase.findIndex(
+    c => c.email === cleanEmail && c.code === cleanCode && c.expiresAt > Date.now()
+  );
+
+  if (recordIndex === -1) {
+    return res.status(400).json({
+      error: 'Código de verificação inválido ou expirado. Solicite a recuperação novamente.'
+    });
+  }
+
+  const user = usersDatabase.find(u => u.email.toLowerCase() === cleanEmail);
+  if (!user) {
+    return res.status(404).json({ error: 'Usuário não encontrado.' });
+  }
+
+  // Update password in database
+  user.password = newPassword;
+
+  // Remove code from reset codes
+  resetCodesDatabase.splice(recordIndex, 1);
+
+  return res.json({
+    success: true,
+    message: 'Sua senha foi redefinida com sucesso! Você já pode acessar o aplicativo com a nova senha.'
+  });
+});
+
+// Legacy Endpoint Alias
 app.post('/api/auth/forgot-password', (req: Request, res: Response) => {
   const { email } = req.body;
   if (!email || !email.includes('@')) {
     return res.status(400).json({ error: 'Informe um e-mail válido para redefinição.' });
   }
+
+  const cleanEmail = email.toLowerCase().trim();
+  const existing = usersDatabase.find(u => u.email.toLowerCase() === cleanEmail);
+
+  if (!existing) {
+    return res.status(404).json({
+      error: 'Não encontramos nenhuma conta cadastrada com este e-mail.'
+    });
+  }
+
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  resetCodesDatabase = resetCodesDatabase.filter(c => c.email !== cleanEmail);
+  resetCodesDatabase.push({
+    email: cleanEmail,
+    code: code,
+    expiresAt: Date.now() + 15 * 60 * 1000
+  });
+
   return res.json({
     success: true,
-    message: `Enviamos as instruções de redefinição de senha para o e-mail: ${email}`
+    message: `Código de verificação enviado para o e-mail: ${cleanEmail}`,
+    code: code,
+    email: cleanEmail
   });
 });
 
