@@ -18,6 +18,17 @@
   <body class="bg-[#FDFCF0] text-[#002147] antialiased selection:bg-[#C5A059]/30 selection:text-[#002147]">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js').then(function(registration) {
+            console.log('PWA ServiceWorker registered with scope: ', registration.scope);
+          }, function(err) {
+            console.log('PWA ServiceWorker registration failed: ', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>
 

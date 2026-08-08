@@ -6,6 +6,7 @@ import { LandingCheckoutModal } from './components/LandingCheckoutModal';
 import { MasterDashboard } from './components/MasterDashboard';
 import { AuthModal } from './components/AuthModal';
 import { FirstAccessTutorialModal } from './components/FirstAccessTutorialModal';
+import { PWAUpdateNotifier } from './components/PWAUpdateNotifier';
 import { HomeView } from './views/HomeView';
 import { LiturgyView } from './views/LiturgyView';
 import { BibleView } from './views/BibleView';
@@ -260,6 +261,9 @@ export function App() {
         onOpenAuth={() => handleOpenAuth('register')}
         onInstallPwa={handleInstallPwa}
       />
+
+      {/* PWA Automatic Live Updater Notifier */}
+      <PWAUpdateNotifier />
 
     </div>
   );

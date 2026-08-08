@@ -147,9 +147,23 @@ let paymentsDatabase: PaymentTransactionRecord[] = [
   }
 ];
 
+// App Version for PWA Automatic Updates
+const APP_BUILD_VERSION = '1.3.0';
+const APP_BUILD_TIMESTAMP = Date.now();
+
 // Healthcheck
 app.get('/api/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', app: 'Fé e Vida Católica Premium', time: new Date().toISOString() });
+  res.json({ status: 'ok', app: 'Fé e Vida Católica Premium', version: APP_BUILD_VERSION, time: new Date().toISOString() });
+});
+
+// App Version Check endpoint for PWA Auto-Updater
+app.get('/api/version', (req: Request, res: Response) => {
+  res.json({
+    version: APP_BUILD_VERSION,
+    timestamp: APP_BUILD_TIMESTAMP,
+    releaseDate: '2026-08-08',
+    changelog: 'Atualizações diárias de liturgia CNBB, recuperação de senha e otimizações PWA.'
+  });
 });
 
 // Auth Routes
