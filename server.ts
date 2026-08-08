@@ -608,6 +608,98 @@ app.get('/api/admin/payments', (req: Request, res: Response) => {
   return res.json({ payments: paymentsDatabase });
 });
 
+// In-memory cache for daily liturgy by date
+const liturgyCache: Record<string, any> = {};
+
+// Daily Liturgy Endpoint according to CNBB and Canção Nova
+app.get('/api/liturgy/daily', async (req: Request, res: Response) => {
+  try {
+    const queryDate = (req.query.date as string) || new Date().toISOString().split('T')[0];
+    const cleanDateKey = queryDate.trim();
+
+    if (liturgyCache[cleanDateKey]) {
+      return res.json({ liturgy: liturgyCache[cleanDateKey], source: 'cache' });
+    }
+
+    const ai = getGenAIClient();
+
+    const prompt = `Você é um especialista teólogo e liturgista da Igreja Católica no Brasil, alinhado 100% com a CNBB (Conferência Nacional dos Bispos do Brasil) e com a Canção Nova.
+Forneça a Liturgia Diária Oficial exata para a data solicitada: ${cleanDateKey} (Ano Litúrgico da Igreja Católica).
+
+Forneça os textos fiéis e oficiais do lecionário dominicais/férias da CNBB e Canção Nova para esta data.
+
+Retorne EXCLUSIVAMENTE um objeto JSON válido, sem qualquer marcação markdown extra além da estrutura JSON, com este exato formato:
+
+{
+  "date": "Data formatada por extenso em Português (Ex: Sábado, 8 de Agosto de 2026)",
+  "title": "Liturgia Diária Oficial - CNBB & Canção Nova",
+  "color": "verde" | "branco" | "roxo" | "vermelho" | "rosa",
+  "colorName": "Nome e Descrição da Cor Litúrgica (Ex: Verde - Tempo Comum)",
+  "season": "Tempo Litúrgico Atual (Ex: 18º Semana do Tempo Comum)",
+  "saintOfDay": {
+    "name": "Nome do Santo do Dia segundo o Martirológio Romano",
+    "title": "Título / Categoria (Ex: Virgem e Mártir, Doutor da Igreja, Apóstolo)",
+    "imageUrl": "https://images.unsplash.com/photo-1548625149-fc4a29cf7092?auto=format&fit=crop&q=80&w=800",
+    "biography": "Biografia resumida inspiradora do santo do dia",
+    "prayer": "Oração oficial de intercessão ao santo do dia"
+  },
+  "firstReading": {
+    "reference": "Livro Capítulo, Versículos (Ex: 1 Macabeus 2, 15-29)",
+    "text": "Texto completo da Primeira Leitura do Lecionário CNBB"
+  },
+  "psalm": {
+    "reference": "Salmo com numeração oficial (Ex: Salmo 49 (50))",
+    "response": "Refrão do Salmo Responsorial",
+    "stanzas": [
+      "Primeira estrofe do salmo",
+      "Segunda estrofe do salmo",
+      "Terceira estrofe do salmo"
+    ]
+  },
+  "secondReading": {
+    "reference": "Referência se houver Segunda Leitura (domingos e solenidades), senão string vazia",
+    "text": "Texto da Segunda Leitura se houver, senão string vazia"
+  },
+  "gospel": {
+    "reference": "Evangelho do Dia (Ex: São Mateus 16, 24-28)",
+    "text": "Texto completo do Santo Evangelho"
+  },
+  "reflection": "Reflexão e homilia pastoral e espiritual para o dia, profunda, no tom da Canção Nova e CNBB, convidando à conversão, oração e vivência familiar do Evangelho."
+}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.6-flash',
+      contents: prompt
+    });
+
+    let liturgyData: any = null;
+    try {
+      const rawText = response.text || '';
+      const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+      const firstBrace = cleanJson.indexOf('{');
+      const lastBrace = cleanJson.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        liturgyData = JSON.parse(cleanJson.substring(firstBrace, lastBrace + 1));
+      } else {
+        liturgyData = JSON.parse(cleanJson);
+      }
+    } catch (parseErr) {
+      console.warn('Fallback liturgy parse error:', parseErr);
+    }
+
+    if (liturgyData && liturgyData.gospel && liturgyData.gospel.text) {
+      liturgyCache[cleanDateKey] = liturgyData;
+      return res.json({ liturgy: liturgyData, source: 'gemini' });
+    }
+
+    // Fallback if parsing fails
+    return res.json({ liturgy: null, error: 'Não foi possível carregar a liturgia automática do dia.' });
+  } catch (err: any) {
+    console.error('Error in /api/liturgy/daily:', err);
+    return res.status(500).json({ error: 'Erro ao buscar liturgia diária.', details: err.message });
+  }
+});
+
 // Gemini AI Catholic Services (Reflection, Kids Story, Catechism Q&A)
 app.post('/api/gemini/reflection', async (req: Request, res: Response) => {
   try {
